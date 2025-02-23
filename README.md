@@ -9,4 +9,4 @@ Zoom +, Zoom -
 
 CamOverlay Widget 4 Text Field update
 
-**Required: CamStreamer Cloud Token is needed to be able to use this script**
+**Required: CamStreamer Cloud API Token is needed to be able to use this script**
