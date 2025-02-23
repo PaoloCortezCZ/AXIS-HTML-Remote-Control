@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Camera Dashboard</title>
+  <style>
+    :root {
+      --background-color: white;
+      --text-color: black;
+      --button-bg: #007bff;
+      --button-text: white;
+      --notification-bg: rgba(0, 0, 0, 0.7);
+      --notification-text: white;
+      --modal-bg: white;
+      --modal-text: black;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --background-color: #222;
+        --text-color: white;
+        --button-bg: #4da6ff;
+        --notification-bg: rgba(255, 255, 255, 0.7);
+        --notification-text: black;
+        --modal-bg: #333;
+        --modal-text: white;
+      }
+    }
+
+    body {
+      background-color: var(--background-color);
+      color: var(--text-color);
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      margin: 0;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    .ptz-controls {
+      display: grid;
+      grid-template-areas:
+        " . up . "
+        "left home right"
+        " . down . ";
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .ptz-controls button {
+      width: 60px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background-color: var(--button-bg);
+      color: var(--button-text);
+      cursor: pointer;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      transition: background-color 0.2s;
+    }
+
+    .ptz-controls button:hover {
+      background-color: #0056b3;
+    }
+
+    .ptz-controls button svg {
+      width: 40px;
+      height: 40px;
+    }
+
+    #up { grid-area: up; }
+    #left { grid-area: left; }
+    #home { grid-area: home; }
+    #right { grid-area: right; }
+    #down { grid-area: down; }
+
+    #zoom-controls,
+    #ptz-presets {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    #zoom-controls button,
+    #ptz-presets button {
+      padding: 5px 10px;
+      font-size: 16px;
+      background-color: var(--button-bg);
+      color: var(--button-text);
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      transition: background-color 0.2s;
+    }
+
+    #zoom-controls button:hover,
+    #ptz-presets button:hover {
+      background-color: #0056b3;
+    }
+
+    .custom-commands {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .custom-commands input {
+      padding: 5px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      width: 200px;
+    }
+
+    .custom-commands button {
+      padding: 5px 10px;
+      font-size: 16px;
+      background-color: var(--button-bg);
+      color: var(--button-text);
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      transition: background-color 0.2s;
+    }
+
+    .custom-commands button:hover {
+      background-color: #0056b3;
+    }
+
+    #notification {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background-color: var(--notification-bg);
+      color: var(--notification-text);
+      padding: 10px;
+      border-radius: 5px;
+      display: none;
+      font-size: 14px;
+    }
+
+    .settings-btn {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+
+    .settings-btn svg {
+      width: 24px;
+      height: 24px;
+      fill: var(--text-color);
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background-color: var(--modal-bg);
+      color: var(--modal-text);
+      padding: 20px;
+      border-radius: 8px;
+      width: 300px;
+      text-align: center;
+    }
+
+    .modal-content h2 {
+      margin-top: 0;
+    }
+
+    .modal-content input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+
+    .modal-content button {
+      padding: 10px 20px;
+      background-color: var(--button-bg);
+      color: var(--button-text);
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .modal-content button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <button class="settings-btn" id="settings-btn">
+    <svg viewBox="0 0 24 24">
+      <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.6-.22l-2.42.98a7.74 7.74 0 0 0-1.63-.94l-.37-2.58a.49.49 0 0 0-.48-.41h-3.84a.49.49 0 0 0-.48.41l-.37 2.58a7.74 7.74 0 0 0-1.63.94l-2.42-.98a.49.49 0 0 0-.6.22L2.12 9.47a.49.49 0 0 0 .12.61l2.03 1.58c-.05.3-.07.62-.07.94 0 .32.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.6.22l2.42-.98c.5.38 1.04.7 1.63.94l.37 2.58c.04.24.24.41.48.41h3.84c.24 0 .44-.17.48-.41l.37-2.58c.59-.24 1.13-.57 1.63-.94l2.42.98c.23.1.48.03.6-.22l1.92-3.32a.49.49 0 0 0-.12-.61l-2.03-1.58zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z" fill="currentColor"/>
+    </svg>
+  </button>
+
+  <div id="settings-modal" class="modal">
+    <div class="modal-content">
+      <h2>Settings</h2>
+      <input type="text" id="serial-input" placeholder="Camera Serial Number (e.g., b8a44f140b8d)" />
+      <input type="text" id="token-input" placeholder="Token (e.g., HDXj1iYk9SMzgaO3Uisw9BGe_system2)" />
+      <input type="text" id="preset1-name" placeholder="Preset 1 Name (e.g., Home)" />
+      <input type="text" id="preset2-name" placeholder="Preset 2 Name (e.g., Center TV)" />
+      <input type="text" id="preset3-name" placeholder="Preset 3 Name" />
+      <input type="text" id="preset4-name" placeholder="Preset 4 Name" />
+      <button id="save-settings">Save</button>
+    </div>
+  </div>
+
+  <h1>Camera Dashboard</h1>
+  <div class="ptz-controls">
+    <button id="up">
+      <svg viewBox="0 0 24 24">
+        <path d="M12 8l6 6H6z" fill="currentColor" />
+      </svg>
+    </button>
+    <button id="left">
+      <svg viewBox="0 0 24 24">
+        <path d="M8 12l6 6V6z" fill="currentColor" />
+      </svg>
+    </button>
+    <button id="home">
+      <svg viewBox="0 0 24 24">
+        <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" fill="currentColor" />
+      </svg>
+    </button>
+    <button id="right">
+      <svg viewBox="0 0 24 24">
+        <path d="M16 12l-6 6V6z" fill="currentColor" />
+      </svg>
+    </button>
+    <button id="down">
+      <svg viewBox="0 0 24 24">
+        <path d="M12 16l6-6H6z" fill="currentColor" />
+      </svg>
+    </button>
+  </div>
+
+  <div id="zoom-controls">
+    <button id="zoom-in">Zoom +</button>
+    <button id="zoom-out">Zoom -</button>
+  </div>
+
+  <div id="ptz-presets"></div>
+
+  <div class="custom-commands">
+    <input type="text" id="text-input" placeholder="Enter overlay text" />
+    <button id="update-text">Update Text</button>
+  </div>
+  <div id="notification"></div>
+
+  <script>
+    // Default values using your provided Camera Serial Number and Token
+    const defaultSerial = 'b8a44f140b8d';
+    const defaultToken = 'HDXj1iYk9SMzgaO3Uisw9BGe_system2';
+    const defaultPresetNames = {
+      preset1: 'Preset 1',
+      preset2: 'Preset 2',
+      preset3: 'Preset 3',
+      preset4: 'Preset 4'
+    };
+
+    // Load saved settings from localStorage or use defaults
+    let serial = localStorage.getItem('serial') || defaultSerial;
+    let token = localStorage.getItem('token') || defaultToken;
+    let presetNames = {
+      preset1: localStorage.getItem('preset1-name') || defaultPresetNames.preset1,
+      preset2: localStorage.getItem('preset2-name') || defaultPresetNames.preset2,
+      preset3: localStorage.getItem('preset3-name') || defaultPresetNames.preset3,
+      preset4: localStorage.getItem('preset4-name') || defaultPresetNames.preset4
+    };
+    let baseUrl = `https://${serial}.device-connect.net/`;
+
+    // Function to send commands to the camera
+    function sendCommand(command, isOverlay = false) {
+      const url = `${baseUrl}${isOverlay ? 'local/' : ''}${command}&DEVICE_ACCESS_TOKEN=${token}`;
+      console.log('Sending request to:', url);
+      fetch(url)
+        .then(response => {
+          if (!response.ok) {
+            const errorMsg = `Error: ${response.status} - ${response.statusText}`;
+            console.error(errorMsg);
+            showNotification(errorMsg);
+          } else {
+            console.log('Command sent successfully');
+          }
+        })
+        .catch(error => {
+          console.error('Network error:', error);
+          showNotification('Network error: ' + error.message);
+        });
+    }
+
+    // Function to show notification
+    function showNotification(message) {
+      const notification = document.getElementById('notification');
+      notification.textContent = message;
+      notification.style.display = 'block';
+      setTimeout(() => {
+        notification.style.display = 'none';
+      }, 2000);
+    }
+
+    // PTZ control event listeners
+    document.getElementById('up').addEventListener('click', () => {
+      sendCommand('axis-cgi/com/ptz.cgi?move=up');
+      showNotification('Moved up');
+    });
+
+    document.getElementById('left').addEventListener('click', () => {
+      sendCommand('axis-cgi/com/ptz.cgi?move=left');
+      showNotification('Moved left');
+    });
+
+    document.getElementById('home').addEventListener('click', () => {
+      sendCommand('axis-cgi/com/ptz.cgi?move=home');
+      showNotification('Moved to home position');
+    });
+
+    document.getElementById('right').addEventListener('click', () => {
+      sendCommand('axis-cgi/com/ptz.cgi?move=right');
+      showNotification('Moved right');
+    });
+
+    document.getElementById('down').addEventListener('click', () => {
+      sendCommand('axis-cgi/com/ptz.cgi?move=down');
+      showNotification('Moved down');
+    });
+
+    // Zoom in (relative)
+    document.getElementById('zoom-in').addEventListener('click', () => {
+      sendCommand('axis-cgi/com/ptz.cgi?rzoom=100');
+      showNotification('Zoomed in');
+    });
+
+    // Zoom out (relative)
+    document.getElementById('zoom-out').addEventListener('click', () => {
+      sendCommand('axis-cgi/com/ptz.cgi?rzoom=-100');
+      showNotification('Zoomed out');
+    });
+
+    // Text overlay event listener
+    document.getElementById('update-text').addEventListener('click', () => {
+      const text = document.getElementById('text-input').value;
+      const encodedText = encodeURIComponent(text);
+      const command = `camoverlay/api/customGraphics.cgi?service_id=4&field1=${encodedText}`;
+      sendCommand(command, true);
+      showNotification(`Overlay text updated to '${text}'`);
+    });
+
+    // Function to display preset buttons with custom names
+    function displayPresets() {
+      const presetsContainer = document.getElementById('ptz-presets');
+      presetsContainer.innerHTML = ''; // Clear existing buttons
+
+      const staticPresets = [
+        { name: presetNames.preset1, id: 1 },
+        { name: presetNames.preset2, id: 2 },
+        { name: presetNames.preset3, id: 3 },
+        { name: presetNames.preset4, id: 4 }
+      ];
+
+      staticPresets.forEach(preset => {
+        const btn = document.createElement('button');
+        btn.textContent = preset.name;
+        btn.title = `Preset ID: ${preset.id}`; // Tooltip for clarity
+        btn.addEventListener('click', () => {
+          sendCommand(`axis-cgi/com/ptz.cgi?gotoserverpresetno=${preset.id}`);
+          showNotification(`Moved to ${preset.name}`);
+        });
+        presetsContainer.appendChild(btn);
+      });
+    }
+
+    // Settings modal functionality
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsModal = document.getElementById('settings-modal');
+    const saveSettingsBtn = document.getElementById('save-settings');
+
+    settingsBtn.addEventListener('click', () => {
+      document.getElementById('serial-input').value = serial;
+      document.getElementById('token-input').value = token;
+      document.getElementById('preset1-name').value = presetNames.preset1;
+      document.getElementById('preset2-name').value = presetNames.preset2;
+      document.getElementById('preset3-name').value = presetNames.preset3;
+      document.getElementById('preset4-name').value = presetNames.preset4;
+      settingsModal.style.display = 'flex';
+    });
+
+    saveSettingsBtn.addEventListener('click', () => {
+      const newSerial = document.getElementById('serial-input').value;
+      const newToken = document.getElementById('token-input').value;
+      const newPreset1Name = document.getElementById('preset1-name').value || defaultPresetNames.preset1;
+      const newPreset2Name = document.getElementById('preset2-name').value || defaultPresetNames.preset2;
+      const newPreset3Name = document.getElementById('preset3-name').value || defaultPresetNames.preset3;
+      const newPreset4Name = document.getElementById('preset4-name').value || defaultPresetNames.preset4;
+
+      if (newSerial && newToken) {
+        serial = newSerial;
+        token = newToken;
+        presetNames = {
+          preset1: newPreset1Name,
+          preset2: newPreset2Name,
+          preset3: newPreset3Name,
+          preset4: newPreset4Name
+        };
+        baseUrl = `https://${serial}.device-connect.net/`;
+        localStorage.setItem('serial', serial);
+        localStorage.setItem('token', token);
+        localStorage.setItem('preset1-name', presetNames.preset1);
+        localStorage.setItem('preset2-name', presetNames.preset2);
+        localStorage.setItem('preset3-name', presetNames.preset3);
+        localStorage.setItem('preset4-name', presetNames.preset4);
+        showNotification('Settings saved successfully');
+        displayPresets(); // Refresh preset buttons with new names
+      } else {
+        showNotification('Please enter both Serial Number and Token');
+      }
+      settingsModal.style.display = 'none';
+    });
+
+    // Close modal if clicked outside
+    settingsModal.addEventListener('click', (e) => {
+      if (e.target === settingsModal) {
+        settingsModal.style.display = 'none';
+      }
+    });
+
+    // Display presets when the page loads
+    displayPresets();
+  </script>
+</body>
+</html>
